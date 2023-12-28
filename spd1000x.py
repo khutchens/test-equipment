@@ -111,7 +111,7 @@ def status():
 @click.argument('voltage', nargs=1, required=True)
 @click.argument('current', nargs=1, required=True)
 def set(voltage, current):
-    """Set the targets voltage/current setpoints. Output must be off."""
+    """Set the target's voltage/current setpoints. Output must be off."""
     target.set_vi(voltage, current)
     print(target.get_state())
 
