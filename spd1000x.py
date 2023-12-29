@@ -20,6 +20,42 @@ log.addHandler(log_handler)
 class ScpiError(Exception):
     pass
 
+class Scpi:
+    def __init__(self, device):
+        self._device = device
+
+    def query(self, command):
+        log.info(f'SCPI query: {command}')
+
+        if command[-1] != '\n':
+            command += '\n'
+
+        self._device.send(command.encode('utf-8'))
+        response = self._device.recv(4096).decode('utf-8').rstrip()
+        log.info(f'SCPI response: {response}')
+        return response
+
+    def set(self, command):
+        log.info(f'SCPI set: {command}')
+        self._device.send(command.encode('utf-8'))
+
+        code, message = self.query('SYST:ERR?').split(',', 1)
+        if int(code) != 0:
+            raise ScpiError(f'SCPI set failed, command:"{command}", result:{code},"{message}"')
+
+    def get_id(self):
+        return self.query('*IDN?').split(',')
+
+class ScpiSocket(Scpi):
+    def __init__(self, address, port):
+        scpi_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        log.info(f'Connecting: {address}:{port}')
+        scpi_socket.connect((address, port))
+        log.info('Connected')
+
+        super().__init__(scpi_socket)
+
 class Spd1000xError(Exception):
     pass
 
@@ -33,58 +69,32 @@ class Spd1000xState:
                 f'Output: {output_mode}, {self.regulation}, {self.mode}')
 
 class Spd1000x:
-    def __init__(self, address, port):
+    def __init__(self, scpi):
         self._channel = 'CH1'
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        log.info(f'Connecting: {address}:{port}')
-        self._socket.connect((address, port))
-        log.info('Connected')
-
-    def _scpi_query(self, command):
-        log.info(f'SCPI query: {command}')
-
-        if command[-1] != '\n':
-            command += '\n'
-
-        self._socket.send(command.encode('utf-8'))
-        response = self._socket.recv(4096).decode('utf-8').rstrip()
-        log.info(f'SCPI response: {response}')
-        return response
-
-    def _scpi_set(self, command):
-        log.info(f'SCPI set: {command}')
-        self._socket.send(command.encode('utf-8'))
-
-        code, message = self._scpi_query('SYST:ERR?').split(',', 1)
-        if int(code) != 0:
-            raise ScpiError(f'SCPI set failed, command:"{command}", result:{code},"{message}"')
-
-    def get_id(self):
-        return self._scpi_query('*IDN?').split(',')
+        self._scpi = scpi
 
     def set_vi(self, voltage, current):
         state = self.get_state()
         if state.output:
             raise Spd1000xError('Cannot change setpoints while output is enabled')
 
-        self._scpi_set(f'{self._channel}:VOLT {voltage}')
-        self._scpi_set(f'{self._channel}:CURR {current}')
+        self._scpi.set(f'{self._channel}:VOLT {voltage}')
+        self._scpi.set(f'{self._channel}:CURR {current}')
 
     def output(self, enable):
-        self._scpi_query('INST?')
+        self._scpi.query('INST?')
         state = 'ON' if enable else 'OFF'
-        self._scpi_set(f'OUTP {self._channel},{state}')
+        self._scpi.set(f'OUTP {self._channel},{state}')
 
     def get_state(self):
         state = Spd1000xState()
 
-        state.v_set = self._scpi_query(f'{self._channel}:VOLT?')
-        state.i_set = self._scpi_query(f'{self._channel}:CURR?')
-        state.v_meas = self._scpi_query(f'MEAS:VOLT? {self._channel}')
-        state.i_meas = self._scpi_query(f'MEAS:CURR? {self._channel}')
+        state.v_set = self._scpi.query(f'{self._channel}:VOLT?')
+        state.i_set = self._scpi.query(f'{self._channel}:CURR?')
+        state.v_meas = self._scpi.query(f'MEAS:VOLT? {self._channel}')
+        state.i_meas = self._scpi.query(f'MEAS:CURR? {self._channel}')
 
-        status = int(self._scpi_query('SYST:STAT?'), 16)
+        status = int(self._scpi.query('SYST:STAT?'), 16)
         state.regulation = 'constant-current' if status & 0x1 else 'constant-voltage'
         state.output = bool(status & 0x10)
         state.mode = '4-wire' if status & 0x20 else '2-wire'
@@ -107,13 +117,15 @@ def cli(ip_addr, port, verbose):
     if ip_addr is None:
         raise click.BadParameter(f'Set ${addr_env_var} or use --ip-addr option', param_hint='--ip-addr')
 
+    global scpi
+    scpi = ScpiSocket(ip_addr, port)
     global target
-    target = Spd1000x(ip_addr, port)
+    target = Spd1000x(scpi)
 
 @click.command()
 def info():
     """Show the target's version strings."""
-    print(target.get_id())
+    print(scpi.get_id())
 
 @click.command()
 def status():
