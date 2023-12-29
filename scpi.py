@@ -53,32 +53,55 @@ class Scpi:
         return self.query('*IDN?').split(',')
 
 class ScpiSocket(Scpi):
-    def __init__(self, address, port):
+    def __init__(self, tcp_addr):
+        tokens = tcp_addr.split(':')
+        if len(tokens) == 1:
+            addr, port = tokens[0], 5025
+        elif len(tokens) == 2:
+            addr, port = tokens[0], int(tokens[1])
+        else:
+            raise ScpiError(f'Malformed address: {tcp_addr}')
+
         scpi_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         scpi_socket.settimeout(1.000)
 
-        log.info(f'Connecting: {address}:{port}')
-        scpi_socket.connect((address, port))
+        log.info(f'Connecting: {addr}:{port}')
+        scpi_socket.connect((addr, port))
         log.info('Connected')
 
         super().__init__(scpi_socket)
 
-addr_default = None
-port_default = '5025'
+class ScpiUsb(Scpi):
+    class UsbSocket:
+        def __init__(self, usb_device_path):
+            self._fd = os.open(usb_device_path, os.O_RDWR)
+
+        def send(self, data):
+            os.write(self._fd, data)
+
+        def recv(self, data):
+            return os.read(self._fd, 4096)
+
+    def __init__(self, usb_device_path):
+        log.info(f'Opening: {usb_device_path}')
+        super().__init__(self.UsbSocket(usb_device_path))
+
 @click.group()
-@click.option('-a', '--ip-addr', default=addr_default, type=str, help=f"Target's IP address. Defualt={addr_default}.")
-@click.option('-p', '--port', default=port_default, type=int, help=f"Target's TCP port. Defualt={port_default}.")
+@click.option('-t', '--tcp-addr', type=str, help=f"Target IP address.")
+@click.option('-u', '--usb-device', type=str, help=f"Target USB device.")
 @click.option('-v/-q', '--verbose/--quiet', default=False, help="Adjust output verbosity.")
 @click.pass_context
-def cli(context, ip_addr, port, verbose):
-    """CLI control of a SPD1000X power supply via TCP."""
+def cli(context, tcp_addr, usb_device, verbose):
+    """CLI control of SCPI devices over TCP or USB."""
     if verbose:
         logging.getLogger('').setLevel(logging.DEBUG)
 
-    if ip_addr is None:
-        raise click.BadParameter(f'Use --ip-addr option', param_hint='--ip-addr')
-
-    context.target = ScpiSocket(ip_addr, port)
+    if tcp_addr:
+        context.target = ScpiSocket(tcp_addr)
+    elif usb_device:
+        context.target = ScpiUsb(usb_device)
+    else:
+        raise click.BadParameter('TCP address or USB device required.')
 
 @click.command()
 @click.pass_context

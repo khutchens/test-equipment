@@ -25,24 +25,26 @@ class Sdg1000x:
     def set_output(self, channel, enable):
         self._scpi.set(f'{channel}:OUTP {enable}')
 
-addr_env_var = 'SDG1000X_ADDR'
-addr_default = os.environ.get(addr_env_var)
-port_env_var = 'SDG1000X_PORT'
-port_default = os.environ.get(port_env_var, '5025')
+tcpaddr_env_var = 'SDG1000X_TCPADDR'
+tcpaddr_default = os.environ.get(tcpaddr_env_var)
+usbdev_env_var = 'SDG1000X_USBDEVICE'
+usbdev_default = os.environ.get(usbdev_env_var)
 @click.group()
-@click.option('-a', '--ip-addr', default=addr_default, type=str, help=f"Target's IP address. Defualt={addr_default}. Override default with {addr_env_var} env var.")
-@click.option('-p', '--port', default=port_default, type=int, help=f"Target's TCP port. Defualt={port_default}. Override default with {port_env_var} env var.")
+@click.option('-t', '--tcp-addr', default=tcpaddr_default, type=str, help=f"Target IP address. Override default with {tcpaddr_env_var} env var.")
+@click.option('-u', '--usb-device', default=usbdev_default, type=str, help=f"Target USB device. Override default with {usbdev_env_var} env var.")
 @click.option('-v/-q', '--verbose/--quiet', default=False, help="Adjust output verbosity.")
 @click.pass_context
-def cli(context, ip_addr, port, verbose):
-    """CLI control of a SDG1000X power supply via TCP."""
+def cli(context, tcp_addr, usb_device, verbose):
+    """CLI control of a SDG1000X power supply."""
     if verbose:
         logging.getLogger('').setLevel(logging.DEBUG)
 
-    if ip_addr is None:
-        raise click.BadParameter(f'Set ${addr_env_var} or use --ip-addr option', param_hint='--ip-addr')
-
-    context.target = Sdg1000x(scpi.ScpiSocket(ip_addr, port))
+    if tcp_addr:
+        context.target = Sdg1000x(scpi.ScpiSocket(tcp_addr))
+    elif usb_device:
+        context.target = Sdg1000x(scpi.ScpiUsb(usb_device))
+    else:
+        raise click.BadParameter('TCP address or USB device required.')
 
 @click.command()
 @click.argument('channel', nargs=1, required=True)
