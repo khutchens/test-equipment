@@ -109,7 +109,8 @@ port_default = os.environ.get(port_env_var, '5025')
 @click.option('-a', '--ip-addr', default=addr_default, type=str, help=f"Target's IP address. Defualt={addr_default}. Override default with {addr_env_var} env var.")
 @click.option('-p', '--port', default=port_default, type=int, help=f"Target's TCP port. Defualt={port_default}. Override default with {port_env_var} env var.")
 @click.option('-v/-q', '--verbose/--quiet', default=False, help="Adjust output verbosity.")
-def cli(ip_addr, port, verbose):
+@click.pass_context
+def cli(context, ip_addr, port, verbose):
     """CLI control of a SPD1000X power supply via TCP."""
     if verbose:
         log_handler.setLevel(logging.INFO)
@@ -117,42 +118,44 @@ def cli(ip_addr, port, verbose):
     if ip_addr is None:
         raise click.BadParameter(f'Set ${addr_env_var} or use --ip-addr option', param_hint='--ip-addr')
 
-    global scpi
-    scpi = ScpiSocket(ip_addr, port)
-    global target
-    target = Spd1000x(scpi)
+    context.target = Spd1000x(ScpiSocket(ip_addr, port))
 
 @click.command()
-def info():
+@click.pass_context
+def info(context):
     """Show the target's version strings."""
-    print(scpi.get_id())
+    print(context.parent.target._scpi.get_id())
 
 @click.command()
-def status():
+@click.pass_context
+def status(context):
     """Show the target's current setpoint and output state."""
-    print(target.get_state())
+    print(context.parent.target.get_state())
 
 @click.command()
 @click.argument('voltage', nargs=1, required=True)
 @click.argument('current', nargs=1, required=True)
-def set(voltage, current):
+@click.pass_context
+def set(context, voltage, current):
     """Set the target's voltage/current setpoints. Output must be off."""
     target.set_vi(voltage, current)
-    print(target.get_state())
+    print(context.parent.target.get_state())
 
 @click.command()
-def on():
+@click.pass_context
+def on(context):
     """Turn on the target's output."""
     target.output(True)
     time.sleep(0.500)
-    print(target.get_state())
+    print(context.parent.target.get_state())
 
 @click.command()
-def off():
+@click.pass_context
+def off(context):
     """Turn off the target's output."""
     target.output(False)
     time.sleep(0.500)
-    print(target.get_state())
+    print(context.parent.target.get_state())
 
 cli.add_command(info)
 cli.add_command(status)
