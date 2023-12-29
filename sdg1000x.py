@@ -9,6 +9,11 @@ import scpi
 
 log = logging.getLogger('.sdg1000x')
 
+CHANNEL = {
+    '1': 'C1',
+    '2': 'C2',
+}
+
 class Sdg1000xError(Exception):
     pass
 
@@ -52,7 +57,7 @@ def cli(context, tcp_addr, usb_device, verbose):
 @click.pass_context
 def out(context, channel, enable):
     """Show a channel's current output state."""
-    print(context.parent.target.get_output(channel))
+    print(context.parent.target.get_output(CHANNEL[channel]))
 
 @click.command()
 @click.argument('channel', nargs=1, required=True)
@@ -60,7 +65,7 @@ def out(context, channel, enable):
 def on(context, channel):
     """Turn on a channel's output."""
     context.parent.target.set_output(channel, 'ON')
-    print(context.parent.target.get_output(channel))
+    print(context.parent.target.get_output(CHANNEL[channel]))
 
 @click.command()
 @click.argument('channel', nargs=1, required=True)
@@ -68,7 +73,7 @@ def on(context, channel):
 def off(context, channel):
     """Turn off a channel's output."""
     context.parent.target.set_output(channel, 'OFF')
-    print(context.parent.target.get_output(channel))
+    print(context.parent.target.get_output(CHANNEL[channel]))
 
 cli.add_command(out)
 cli.add_command(on)
