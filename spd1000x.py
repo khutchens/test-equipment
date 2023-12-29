@@ -1,10 +1,21 @@
 #! /usr/bin/env python3
 
 import click
+import logging
 import os
 import socket
 import sys
 import time
+
+log_formatter = logging.Formatter('%(name)s:%(levelname)s: %(message)s')
+
+log_handler = logging.StreamHandler()
+log_handler.setLevel(logging.WARNING)
+log_handler.setFormatter(log_formatter)
+
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
+log.addHandler(log_handler)
 
 class ScpiError(Exception):
     pass
@@ -22,33 +33,27 @@ class Spd1000xState:
                 f'Output: {output_mode}, {self.regulation}, {self.mode}')
 
 class Spd1000x:
-    def __init__(self, address, port, verbose=False):
+    def __init__(self, address, port):
         self._channel = 'CH1'
-        self._verbose = verbose
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        if self._verbose:
-            print(f'Connecting: {address}:{port}')
+        log.info(f'Connecting: {address}:{port}')
         self._socket.connect((address, port))
-        if self._verbose:
-            print('Connected')
+        log.info('Connected')
 
     def _scpi_query(self, command):
-        if self._verbose:
-            print(f'SCPI query: {command}')
+        log.info(f'SCPI query: {command}')
 
         if command[-1] != '\n':
             command += '\n'
 
         self._socket.send(command.encode('utf-8'))
         response = self._socket.recv(4096).decode('utf-8').rstrip()
-        if self._verbose:
-            print(f'SCPI response: {response}')
+        log.info(f'SCPI response: {response}')
         return response
 
     def _scpi_set(self, command):
-        if self._verbose:
-            print(f'SCPI set: {command}')
+        log.info(f'SCPI set: {command}')
         self._socket.send(command.encode('utf-8'))
 
         code, message = self._scpi_query('SYST:ERR?').split(',', 1)
@@ -96,10 +101,14 @@ port_default = os.environ.get(port_env_var, '5025')
 @click.option('-v/-q', '--verbose/--quiet', default=False, help="Adjust output verbosity.")
 def cli(ip_addr, port, verbose):
     """CLI control of a SPD1000X power supply via TCP."""
+    if verbose:
+        log_handler.setLevel(logging.INFO)
+
     if ip_addr is None:
         raise click.BadParameter(f'Set ${addr_env_var} or use --ip-addr option', param_hint='--ip-addr')
+
     global target
-    target = Spd1000x(ip_addr, port, verbose)
+    target = Spd1000x(ip_addr, port)
 
 @click.command()
 def info():
