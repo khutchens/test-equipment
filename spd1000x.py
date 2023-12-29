@@ -7,64 +7,9 @@ import socket
 import sys
 import time
 
-log_formatter = logging.Formatter('%(name)s:%(levelname)s: %(message)s')
+import scpi
 
-log_handler = logging.StreamHandler()
-log_handler.setLevel(logging.WARNING)
-log_handler.setFormatter(log_formatter)
-
-log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
-log.addHandler(log_handler)
-
-class ScpiError(Exception):
-    pass
-
-class Scpi:
-    def __init__(self, device):
-        self._device = device
-
-    def query(self, command):
-        command_line = command.rstrip()
-        command_delimited = command + '\n'
-        log.info(f'SCPI query: {command_line}')
-
-        try:
-            self._device.send(command_delimited.encode('utf-8'))
-            response = self._device.recv(4096).decode('utf-8').rstrip()
-        except socket.timeout:
-            raise ScpiError(f'Query failed: socket timeout, command: {command_line}');
-
-        log.info(f'SCPI response: {response}')
-        return response
-
-    def set(self, command):
-        command_line = command.rstrip()
-        command_delimited = command + '\n'
-        log.info(f'SCPI set: {command_line }')
-
-        try:
-            self._device.send(command_delimited.encode('utf-8'))
-        except socket.timeout:
-            raise ScpiError(f'Set failed: socket timeout, command: {command_line}');
-
-        code, message = self.query('SYST:ERR?').split(',', 1)
-        if int(code) != 0:
-            raise ScpiError(f'SCPI set failed, command:"{command}", result:{code},"{message}"')
-
-    def get_id(self):
-        return self.query('*IDN?').split(',')
-
-class ScpiSocket(Scpi):
-    def __init__(self, address, port):
-        scpi_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        scpi_socket.settimeout(1.000)
-
-        log.info(f'Connecting: {address}:{port}')
-        scpi_socket.connect((address, port))
-        log.info('Connected')
-
-        super().__init__(scpi_socket)
+log = logging.getLogger('.spd1000x')
 
 class Spd1000xError(Exception):
     pass
@@ -123,18 +68,12 @@ port_default = os.environ.get(port_env_var, '5025')
 def cli(context, ip_addr, port, verbose):
     """CLI control of a SPD1000X power supply via TCP."""
     if verbose:
-        log_handler.setLevel(logging.INFO)
+        logging.getLogger('').setLevel(logging.DEBUG)
 
     if ip_addr is None:
         raise click.BadParameter(f'Set ${addr_env_var} or use --ip-addr option', param_hint='--ip-addr')
 
-    context.target = Spd1000x(ScpiSocket(ip_addr, port))
-
-@click.command()
-@click.pass_context
-def info(context):
-    """Show the target's version strings."""
-    print(context.parent.target._scpi.get_id())
+    context.target = Spd1000x(scpi.ScpiSocket(ip_addr, port))
 
 @click.command()
 @click.pass_context
@@ -167,7 +106,6 @@ def off(context):
     time.sleep(0.500)
     print(context.parent.target.get_state())
 
-cli.add_command(info)
 cli.add_command(status)
 cli.add_command(set)
 cli.add_command(on)
@@ -176,6 +114,6 @@ cli.add_command(off)
 if __name__ == '__main__':
     try:
         cli()
-    except (ScpiError, Spd1000xError) as e:
+    except (scpi.ScpiError, Spd1000xError) as e:
         log.error(e)
         sys.exit(1)
