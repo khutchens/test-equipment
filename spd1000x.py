@@ -36,6 +36,10 @@ class Spd1000x:
     def _scpi_query(self, command):
         if self._verbose:
             print(f'SCPI query: {command}')
+
+        if command[-1] != '\n':
+            command += '\n'
+
         self._socket.send(command.encode('utf-8'))
         response = self._socket.recv(4096).decode('utf-8').rstrip()
         if self._verbose:
