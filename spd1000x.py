@@ -78,6 +78,12 @@ def cli(context, tcp_addr, usb_device, verbose):
 
 @click.command()
 @click.pass_context
+def info(context):
+    """Show the target's version strings."""
+    print(context.parent.target._scpi.get_id())
+
+@click.command()
+@click.pass_context
 def status(context):
     """Show the target's current setpoint and output state."""
     print(context.parent.target.get_state())
@@ -107,6 +113,7 @@ def off(context):
     time.sleep(0.500)
     print(context.parent.target.get_state())
 
+cli.add_command(info)
 cli.add_command(status)
 cli.add_command(set)
 cli.add_command(on)

@@ -40,7 +40,7 @@ usbdev_default = os.environ.get(usbdev_env_var)
 @click.option('-v/-q', '--verbose/--quiet', default=False, help="Adjust output verbosity.")
 @click.pass_context
 def cli(context, tcp_addr, usb_device, verbose):
-    """CLI control of a SDG1000X power supply."""
+    """CLI control of a SDG1000X signal generator."""
     if verbose:
         logging.getLogger('').setLevel(logging.DEBUG)
 
@@ -50,6 +50,12 @@ def cli(context, tcp_addr, usb_device, verbose):
         context.target = Sdg1000x(scpi.ScpiUsb(usb_device))
     else:
         raise click.BadParameter('TCP address or USB device required.')
+
+@click.command()
+@click.pass_context
+def info(context):
+    """Show the target's version strings."""
+    print(context.parent.target._scpi.get_id())
 
 @click.command()
 @click.argument('channel', nargs=1, required=True)
@@ -74,6 +80,7 @@ def off(context, channel):
     context.parent.target.set_output(channel, 'OFF')
     print(context.parent.target.get_output(CHANNEL[channel]))
 
+cli.add_command(info)
 cli.add_command(out)
 cli.add_command(on)
 cli.add_command(off)
