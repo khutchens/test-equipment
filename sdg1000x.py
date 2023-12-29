@@ -53,9 +53,8 @@ def cli(context, tcp_addr, usb_device, verbose):
 
 @click.command()
 @click.argument('channel', nargs=1, required=True)
-@click.argument('enable', nargs=1, required=False)
 @click.pass_context
-def out(context, channel, enable):
+def out(context, channel):
     """Show a channel's current output state."""
     print(context.parent.target.get_output(CHANNEL[channel]))
 
