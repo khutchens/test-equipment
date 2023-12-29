@@ -25,19 +25,28 @@ class Scpi:
         self._device = device
 
     def query(self, command):
-        log.info(f'SCPI query: {command}')
+        command_line = command.rstrip()
+        command_delimited = command + '\n'
+        log.info(f'SCPI query: {command_line}')
 
-        if command[-1] != '\n':
-            command += '\n'
+        try:
+            self._device.send(command_delimited.encode('utf-8'))
+            response = self._device.recv(4096).decode('utf-8').rstrip()
+        except socket.timeout:
+            raise ScpiError(f'Query failed: socket timeout, command: {command_line}');
 
-        self._device.send(command.encode('utf-8'))
-        response = self._device.recv(4096).decode('utf-8').rstrip()
         log.info(f'SCPI response: {response}')
         return response
 
     def set(self, command):
-        log.info(f'SCPI set: {command}')
-        self._device.send(command.encode('utf-8'))
+        command_line = command.rstrip()
+        command_delimited = command + '\n'
+        log.info(f'SCPI set: {command_line }')
+
+        try:
+            self._device.send(command_delimited.encode('utf-8'))
+        except socket.timeout:
+            raise ScpiError(f'Set failed: socket timeout, command: {command_line}');
 
         code, message = self.query('SYST:ERR?').split(',', 1)
         if int(code) != 0:
@@ -49,6 +58,7 @@ class Scpi:
 class ScpiSocket(Scpi):
     def __init__(self, address, port):
         scpi_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        scpi_socket.settimeout(1.000)
 
         log.info(f'Connecting: {address}:{port}')
         scpi_socket.connect((address, port))
@@ -167,5 +177,5 @@ if __name__ == '__main__':
     try:
         cli()
     except (ScpiError, Spd1000xError) as e:
-        print(f'Error: {e}', file=sys.stderr)
+        log.error(e)
         sys.exit(1)
