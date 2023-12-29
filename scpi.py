@@ -45,9 +45,9 @@ class Scpi:
         except socket.timeout:
             raise ScpiError(f'Set failed: socket timeout, command: {command_line}');
 
-        code, message = self.query('SYST:ERR?').split(',', 1)
-        if int(code) != 0:
-            raise ScpiError(f'SCPI set failed, command:"{command}", result:{code},"{message}"')
+        #code, message = self.query('SYST:ERR?').split(',', 1)
+        #if int(code) != 0:
+        #    raise ScpiError(f'SCPI set failed, command:"{command}", result:{code},"{message}"')
 
     def get_id(self):
         return self.query('*IDN?').split(',')

@@ -3,7 +3,6 @@
 import click
 import logging
 import os
-import socket
 import sys
 import time
 
