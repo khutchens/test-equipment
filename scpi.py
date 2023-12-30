@@ -29,8 +29,8 @@ class Scpi:
         try:
             self._device.send(command_delimited.encode('utf-8'))
             response = self._device.recv(4096).decode('utf-8').rstrip()
-        except socket.timeout:
-            raise ScpiError(f'Query failed: socket timeout, command: {command_line}');
+        except (socket.timeout, TimeoutError):
+            raise ScpiError(f'Query failed: timeout, command: {command_line}');
 
         log.info(f'SCPI response: {response}')
         return response
@@ -42,8 +42,8 @@ class Scpi:
 
         try:
             self._device.send(command_delimited.encode('utf-8'))
-        except socket.timeout:
-            raise ScpiError(f'Set failed: socket timeout, command: {command_line}');
+        except (socket.timeout, TimeoutError):
+            raise ScpiError(f'Set failed: timeout, command: {command_line}');
 
         #code, message = self.query('SYST:ERR?').split(',', 1)
         #if int(code) != 0:
@@ -76,11 +76,14 @@ class ScpiUsb(Scpi):
         def __init__(self, usb_device_path):
             self._fd = os.open(usb_device_path, os.O_RDWR)
 
+        def __del__(self):
+            os.close(self._fd)
+
         def send(self, data):
             os.write(self._fd, data)
 
-        def recv(self, data):
-            return os.read(self._fd, 4096)
+        def recv(self, max_length):
+            return os.read(self._fd, max_length)
 
     def __init__(self, usb_device_path):
         log.info(f'Opening: {usb_device_path}')
