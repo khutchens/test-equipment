@@ -94,6 +94,7 @@ class Dpo2014:
         # a different SET and a different filename
         #
         # self._scpi.set(f'SAV:WAVE:FILEF SPREADS; :SAV:WAVE ALL,"E:/tmp-{filename}.csv"')
+        pass
 
 tcpaddr_env_var = 'DPO2014_TCPADDR'
 tcpaddr_default = os.environ.get(tcpaddr_env_var)
