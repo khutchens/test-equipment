@@ -126,7 +126,7 @@ def info(context):
 @click.command()
 @click.pass_context
 def clear(context):
-    """CLear the target's SCPI state and queues."""
+    """Clear the target's SCPI state and queues."""
     context.parent.target.clear()
 
 @click.command()
