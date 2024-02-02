@@ -43,17 +43,11 @@ class Dpo2014:
         with open(filename, 'wb') as file:
             done = False
             while not done:
-                print('.', end='')
-                try:
-                    data = self._scpi._device.recv(128)
-                except TimeoutError:
+                data = self._scpi._device.recv(128)
+                if data.endswith(b'IEND\xae\x42\x60\x82'):
                     done = True
 
                 file.write(data)
-        print('done')
-
-    def clear(self):
-        self._scpi.set('*CLS')
 
     def busy(self):
         return bool(int(self._scpi.query('BUSY?')))
@@ -125,12 +119,6 @@ def info(context):
 
 @click.command()
 @click.pass_context
-def clear(context):
-    """Clear the target's SCPI state and queues."""
-    context.parent.target.clear()
-
-@click.command()
-@click.pass_context
 def status(context):
     """Show the target's status."""
     print(context.parent.target.status())
@@ -151,7 +139,6 @@ def image(context, prefix):
     context.parent.target.image(prefix)
 
 cli.add_command(info)
-cli.add_command(clear)
 cli.add_command(status)
 cli.add_command(label)
 cli.add_command(image)
