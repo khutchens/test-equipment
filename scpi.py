@@ -77,7 +77,8 @@ class ScpiUsb(Scpi):
             self._fd = os.open(usb_device_path, os.O_RDWR)
 
         def __del__(self):
-            os.close(self._fd)
+            if hasattr(self, 'self._fd'):
+                os.close(self._fd)
 
         def send(self, data):
             os.write(self._fd, data)
