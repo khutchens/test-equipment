@@ -94,14 +94,14 @@ def status(context):
 @click.pass_context
 def set(context, voltage, current):
     """Set the target's voltage/current setpoints. Output must be off."""
-    target.set_vi(voltage, current)
+    context.parent.target.set_vi(voltage, current)
     print(context.parent.target.get_state())
 
 @click.command()
 @click.pass_context
 def on(context):
     """Turn on the target's output."""
-    target.output(True)
+    context.parent.target.output(True)
     time.sleep(0.500)
     print(context.parent.target.get_state())
 
@@ -109,7 +109,7 @@ def on(context):
 @click.pass_context
 def off(context):
     """Turn off the target's output."""
-    target.output(False)
+    context.parent.target.output(False)
     time.sleep(0.500)
     print(context.parent.target.get_state())
 
