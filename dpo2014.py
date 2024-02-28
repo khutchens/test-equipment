@@ -115,7 +115,7 @@ def cli(context, tcp_addr, usb_device, verbose):
 @click.pass_context
 def info(context):
     """Show the target's version strings."""
-    print(context.parent.target._scpi.get_id())
+    print('\n'.join(context.parent.target._scpi.get_id()))
 
 @click.command()
 @click.pass_context
